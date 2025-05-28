@@ -1,6 +1,6 @@
 import click
-from methods.SLERP import slerp_models
-from metrics.utility import validate_models
+from methods.slerp import slerp_models
+from methods.utility import validate_models
 from utils.upload import upload_to_hub
 
 @click.command("slerp_merge")
