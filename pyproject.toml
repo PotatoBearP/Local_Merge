@@ -21,9 +21,11 @@ repository = "https://github.com/PotatoBearP/Merge_from_Scratch"
 
 
 [project.scripts]
-merge_cal = "methods.run_command:main"
+slerp_merge = "methods.run_command:main"
 
 [tool.setuptools]
 packages = [
     "methods",
+    "metrics",  # Add missing package
+    "utils",    # Add missing package
 ]
