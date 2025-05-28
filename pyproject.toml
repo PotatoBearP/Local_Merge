@@ -26,6 +26,4 @@ slerp_merge = "methods.run_command:main"
 [tool.setuptools]
 packages = [
     "methods",
-    "metrics",  # Add missing package
-    "utils",    # Add missing package
 ]
