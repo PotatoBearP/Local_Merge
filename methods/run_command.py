@@ -1,6 +1,6 @@
 import click
 from methods.slerp import slerp_models
-from utils.upload import upload_to_hub
+from methods.utility import upload_to_hub
 
 @click.command("slerp_merge")
 @click.argument("model_a_path", type=str)
