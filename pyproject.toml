@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "merge"
+description = "Scratch Implementation of Model Merging"
+readme = "README.md"
+license = { text = "LGPL-3.0-or-later" }
+version = "0.0.0.1"
+authors = [{ name = "Yedi Hu", email = "yedihu.pub@gmail.com" }]
+dependencies = [
+    "transformers~=4.37.2",
+    "click~=8.1.7",
+    "torch~=2.0.1",
+    "numpy~=1.26.4",
+]
+
+[project.urls]
+repository = "https://github.com/PotatoBearP/Merge_from_Scratch"
+
+
+[project.scripts]
+merge_cal = "methods.run_command:main"
+
+[tool.setuptools]
+packages = [
+    "methods",
+]
