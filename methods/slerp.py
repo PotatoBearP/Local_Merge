@@ -100,5 +100,10 @@ def slerp_models(model_a_path: str, model_b_path: str, output_path: str, t: floa
 
     print(f"Saving merged model to {output_path}")
     model = AutoModelForCausalLM.from_pretrained(model_a_path)
+    tokenizer = AutoTokenizer.from_pretrained(model_a_path)
+    if hasattr(model.config, '_name_or_path'):
+        model.config._name_or_path = ""
     model.load_state_dict(merged_state_dict)
+    model = model.to(torch.bfloat16)
     model.save_pretrained(output_path)
+    tokenizer.save_pretrained(output_path)
