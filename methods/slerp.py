@@ -1,20 +1,8 @@
 import torch
 import numpy as np
 from transformers import AutoModelForCausalLM, AutoTokenizer
+from methods.utility import load_model_weights
 
-def load_model_weights(model_path: str) -> dict:
-    """
-    Loads a model from a given path and returns its state dict.
-    Assumes model is compatible with AutoModelForCausalLM.
-
-    Args:
-        model_path (str): Hugging Face-style path or local directory.
-
-    Returns:
-        dict: State dictionary of the model.
-    """
-    model = AutoModelForCausalLM.from_pretrained(model_path)
-    return model.state_dict()
 
 def normalize_tensor(tensor: torch.Tensor, eps: float = 1e-8) -> torch.Tensor:
     """
@@ -85,14 +73,14 @@ def slerp_models(model_a_path: str, model_b_path: str, output_path: str, t: floa
     print("Performing SLERP on model weights...")
     for key in state_dict_a.keys():
         if key not in state_dict_b:
-            print(f"⚠️ Skipping {key}: not found in model B.")
+            print(f"Skipping {key}: not found in model B.")
             continue
 
         tensor_a = state_dict_a[key]
         tensor_b = state_dict_b[key]
 
         if tensor_a.shape != tensor_b.shape:
-            print(f"⚠️ Skipping {key}: shape mismatch {tensor_a.shape} vs {tensor_b.shape}")
+            print(f"Skipping {key}: shape mismatch {tensor_a.shape} vs {tensor_b.shape}")
             continue
 
         merged_tensor = slerp_tensor(t, tensor_a, tensor_b)

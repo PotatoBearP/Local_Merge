@@ -1,6 +1,20 @@
 from huggingface_hub import HfApi
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
+def load_model_weights(model_path: str) -> dict:
+    """
+    Loads a model from a given path and returns its state dict.
+    Assumes model is compatible with AutoModelForCausalLM.
+
+    Args:
+        model_path (str): Hugging Face-style path or local directory.
+
+    Returns:
+        dict: State dictionary of the model.
+    """
+    model = AutoModelForCausalLM.from_pretrained(model_path)
+    return model.state_dict()
+
 def upload_to_hub(
     model_path: str,
     repo_name: str,
@@ -19,6 +33,7 @@ def upload_to_hub(
     Returns:
         str: URL of the uploaded model on HF Hub
     """
+    api = HfApi()
 
     # Create repository if it doesn't exist
     try:
@@ -30,23 +45,13 @@ def upload_to_hub(
     except Exception as e:
         raise Exception(f"Failed to create repository: {str(e)}")
 
-    print(f"Uploading model to {repo_name}...")
+    print(f"Uploading model folder to {repo_name}...")
     
-    # Load the model and tokenizer
-    model = AutoModelForCausalLM.from_pretrained(model_path)
-    tokenizer = AutoTokenizer.from_pretrained(model_path)
-
-    # Upload model and tokenizer
-    model.push_to_hub(
+    # Upload the entire folder
+    api.upload_folder(
+        folder_path=model_path,
         repo_id=repo_name,
-        commit_message=commit_message or "Upload merged model",
-        token=token
-    )
-    
-    tokenizer.push_to_hub(
-        repo_id=repo_name,
-        commit_message=commit_message or "Upload tokenizer",
-        token=token
+        commit_message=commit_message or "Upload model files",
     )
 
     print(f"✅ Model successfully uploaded to: https://huggingface.co/{repo_name}")

@@ -1,5 +1,6 @@
 import click
 from methods.slerp import slerp_models
+from methods.crop_splice import crop_model_deltas, splice_model_deltas
 from methods.utility import upload_to_hub
 
 @click.command("slerp_merge")
@@ -32,7 +33,7 @@ from methods.utility import upload_to_hub
     type=str,
     help="Custom commit message for the upload"
 )
-def main(
+def slerp(
     model_a_path: str,
     model_b_path: str,
     output_path: str,
@@ -88,6 +89,117 @@ def main(
     except Exception as e:
         click.echo(f"Error: {str(e)}", err=True)
         raise click.Abort()
+    
+@click.command("crop")
+@click.argument("model_a_path", type=str)
+@click.argument("model_b_path", type=str)
+@click.argument("output_path", type=str)
+@click.option(
+    "--threshold", "-t",
+    type=float,
+    default=1e-5,
+    help="Minimum difference threshold to keep"
+)
+def crop(
+    model_a_path: str,
+    model_b_path: str,
+    output_path: str,
+    threshold: float,
+):
+    """
+    Crops delta weights between two models and saves them.
+    
+    Args:
+        model_a_path: Path to the base model
+        model_b_path: Path to the target model
+        output_path: Path to save delta weights
+        threshold: Minimum difference threshold
+    """
+    try:
+        crop_model_deltas(
+            model_a_path=model_a_path,
+            model_b_path=model_b_path,
+            output_path=output_path,
+            threshold=threshold
+        )
+        click.echo(f"Successfully saved delta weights to: {output_path}")
+
+    except Exception as e:
+        click.echo(f"Error: {str(e)}", err=True)
+        raise click.Abort()
+
+@click.command("splice")
+@click.argument("base_model_path", type=str)
+@click.argument("delta_path", type=str)
+@click.argument("output_path", type=str)
+@click.option(
+    "--upload", "-u",
+    is_flag=True,
+    help="Upload model to Hugging Face Hub after splicing"
+)
+@click.option(
+    "--repo-name",
+    type=str,
+    help="Repository name for HF Hub (format: 'username/model-name')"
+)
+@click.option(
+    "--private",
+    is_flag=True,
+    help="Make the uploaded model repository private"
+)
+@click.option(
+    "--commit-message",
+    type=str,
+    help="Custom commit message for the upload"
+)
+def splice(
+    base_model_path: str,
+    delta_path: str,
+    output_path: str,
+    upload: bool,
+    repo_name: str,
+    private: bool,
+    commit_message: str,
+):
+    """
+    Applies delta weights to a base model.
+    
+    Args:
+        base_model_path: Path to the base model
+        delta_path: Path to the delta weights file
+        output_path: Path to save the resulting model
+    """
+    try:
+        splice_model_deltas(
+            base_model_path=base_model_path,
+            delta_path=delta_path,
+            output_path=output_path
+        )
+        click.echo(f"Successfully spliced model saved to: {output_path}")
+
+        if upload:
+            if not repo_name:
+                raise click.BadParameter("--repo-name is required when using --upload")
+            
+            hub_url = upload_to_hub(
+                model_path=output_path,
+                repo_name=repo_name,
+                private=private,
+                commit_message=commit_message
+            )
+            click.echo(f"Model uploaded successfully to: {hub_url}")
+
+    except Exception as e:
+        click.echo(f"Error: {str(e)}", err=True)
+        raise click.Abort()
+
+@click.group()
+def cli():
+    pass
+
+cli.add_command(slerp)
+cli.add_command(crop)
+cli.add_command(splice)
 
 if __name__ == '__main__':
-    main()
+    cli()
