@@ -122,7 +122,6 @@ def crop(
             output_path=output_path,
             threshold=threshold
         )
-        click.echo(f"Successfully saved delta weights to: {output_path}")
 
     except Exception as e:
         click.echo(f"Error: {str(e)}", err=True)
@@ -193,13 +192,8 @@ def splice(
         click.echo(f"Error: {str(e)}", err=True)
         raise click.Abort()
 
-@click.group()
-def cli():
+def main():
     pass
 
-cli.add_command(slerp)
-cli.add_command(crop)
-cli.add_command(splice)
-
 if __name__ == '__main__':
-    cli()
+    main()

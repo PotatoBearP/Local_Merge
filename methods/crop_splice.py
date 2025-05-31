@@ -57,8 +57,8 @@ def crop_model_deltas(
             deltas[key] = cropped_delta
 
     # Save delta weights
-    # print(f"Saving delta weights to {output_path}")
-    # torch.save(deltas, output_path)
+    print(f"Saving delta weights to {output_path}")
+    torch.save(deltas, output_path)
 
     return deltas
 

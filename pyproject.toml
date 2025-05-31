@@ -21,7 +21,9 @@ repository = "https://github.com/PotatoBearP/Merge_from_Scratch"
 
 
 [project.scripts]
-slerp_merge = "methods.run_command:main"
+slerp_merge = "methods.run_command:slerp_merge"
+splice = "methods.run_command:splice"
+crop = "methods.run_command:crop"
 
 [tool.setuptools]
 packages = [
