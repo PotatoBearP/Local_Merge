@@ -2,6 +2,56 @@ import click
 from methods.slerp import slerp_models
 from methods.crop_splice import crop_model_deltas, splice_model_deltas
 from methods.utility import upload_to_hub
+from methods.crop_splice import generate_significance_mask
+
+@click.command("generate_mask")
+@click.argument("model_a_path", type=str)
+@click.argument("model_b_path", type=str)
+@click.argument("output_path", type=str)
+@click.option(
+    "--top-percentile", "-p",
+    type=float,
+    default=0.1,
+    help="Percentile of top differences to keep (0.1 = top 10%)"
+)
+@click.option(
+    "--min-threshold", "-t",
+    type=float,
+    default=1e-5,
+    help="Minimum absolute difference threshold"
+)
+def generate_mask(
+    model_a_path: str,
+    model_b_path: str,
+    output_path: str,
+    top_percentile: float,
+    min_threshold: float,
+):
+    """
+    Generates significance masks based on parameter differences between models.
+    
+    Args:
+        model_a_path: Path to the first model
+        model_b_path: Path to the second model
+        output_path: Path to save the generated masks
+        top_percentile: Percentile of top differences to keep
+        min_threshold: Minimum absolute difference threshold
+    """
+    try:
+        if not 0 < top_percentile <= 1:
+            raise click.BadParameter("Top percentile must be between 0 and 1")
+
+        generate_significance_mask(
+            model_a_path=model_a_path,
+            model_b_path=model_b_path,
+            output_path=output_path,
+            top_percentile=top_percentile,
+            min_threshold=min_threshold
+        )
+        
+    except Exception as e:
+        click.echo(f"Error: {str(e)}", err=True)
+        raise click.Abort()
 
 @click.command("slerp_merge")
 @click.argument("model_a_path", type=str)
@@ -12,6 +62,12 @@ from methods.utility import upload_to_hub
     type=float,
     default=0.5,
     help="Interpolation factor (0 = model A, 1 = model B)"
+)
+@click.option(
+    "--mask-path", "-m",
+    type=str,
+    default=None,
+    help="Path to significance mask file for guided merging"
 )
 @click.option(
     "--upload", "-u",
@@ -38,6 +94,7 @@ def slerp(
     model_b_path: str,
     output_path: str,
     interpolation: float,
+    mask_path: str,
     upload: bool,
     repo_name: str,
     private: bool,
@@ -67,7 +124,8 @@ def slerp(
             model_a_path=model_a_path,
             model_b_path=model_b_path,
             output_path=output_path,
-            t=interpolation
+            t=interpolation,
+            mask_path=mask_path
         )
         
         click.echo(f"Successfully merged models with interpolation factor {interpolation}")

@@ -20,7 +20,7 @@ def crop_model_deltas(
     Args:
         model_a_path (str): Path to the base model
         model_b_path (str): Path to the target model
-        output_path (str): Path to save the resulting cropped model
+        output_path (str): Path to save the resulting cropped vector
         threshold (float): Minimum difference threshold to keep
         save_deltas (Optional[str]): Path to save delta weights if specified
 
