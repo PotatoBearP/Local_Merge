@@ -90,6 +90,7 @@ def slerp_models(
     for key in state_dict_a.keys():
         if key not in state_dict_b:
             logger.warning(f"Skipping {key}: not found in model B")
+            merged_state_dict[key] = tensor_a
             continue
 
         tensor_a = state_dict_a[key]
@@ -97,6 +98,7 @@ def slerp_models(
 
         if tensor_a.shape != tensor_b.shape:
             logger.warning(f"Skipping {key}: shape mismatch {tensor_a.shape} vs {tensor_b.shape}")
+            merged_state_dict[key] = tensor_a
             continue
 
         if masks is not None and key in masks:

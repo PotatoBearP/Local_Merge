@@ -2,7 +2,7 @@ import click
 from methods.slerp import slerp_models
 from methods.crop_splice import crop_model_deltas, splice_model_deltas
 from methods.utility import upload_to_hub
-from methods.crop_splice import generate_significance_mask
+from methods.gen_task_mask import generate_significance_mask
 
 @click.command("generate_mask")
 @click.argument("model_a_path", type=str)
@@ -89,7 +89,7 @@ def generate_mask(
     type=str,
     help="Custom commit message for the upload"
 )
-def slerp(
+def slerp_merge(
     model_a_path: str,
     model_b_path: str,
     output_path: str,
@@ -126,23 +126,20 @@ def slerp(
             output_path=output_path,
             t=interpolation,
             mask_path=mask_path
-        )
-        
-        click.echo(f"Successfully merged models with interpolation factor {interpolation}")
-        click.echo(f"Merged model saved to: {output_path}")
+        )    
 
         # Handle upload if requested
-        if upload:
-            if not repo_name:
-                raise click.BadParameter("--repo-name is required when using --upload")
+        # if upload:
+        #     if not repo_name:
+        #         raise click.BadParameter("--repo-name is required when using --upload")
             
-            hub_url = upload_to_hub(
-                model_path=output_path,
-                repo_name=repo_name,
-                private=private,
-                commit_message=commit_message
-            )
-            click.echo(f"Model uploaded successfully to: {hub_url}")
+        #     hub_url = upload_to_hub(
+        #         model_path=output_path,
+        #         repo_name=repo_name,
+        #         private=private,
+        #         commit_message=commit_message
+        #     )
+        #     click.echo(f"Model uploaded successfully to: {hub_url}")
 
     except Exception as e:
         click.echo(f"Error: {str(e)}", err=True)
