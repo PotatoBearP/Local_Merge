@@ -1,6 +1,6 @@
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
-from methods.utility import load_model_weights
+from methods.utility import load_model_weights, minimum_tensor_slices
 from typing import Dict, Optional
 import logging
 
@@ -35,7 +35,7 @@ def generate_significance_mask(
     logger.info(f"Loading weights from model B: {model_b_path}")
     state_dict_b = load_model_weights(model_b_path)
 
-    significance_masks = {}
+    task_masks = {}
     total_params = 0
     all_deltas = []
 
@@ -49,8 +49,8 @@ def generate_significance_mask(
         tensor_b = state_dict_b[key]
 
         if tensor_a.shape != tensor_b.shape:
-            logger.warning(f"Skipping {key}: shape mismatch {tensor_a.shape} vs {tensor_b.shape}")
-            continue
+            tensor_a, tensor_b= minimum_tensor_slices(tensor_a, tensor_b)
+            logger.warning(f"Shape mismatch for {key}: {tensor_a.shape} vs {tensor_b.shape}")
 
         delta = torch.abs(tensor_b - tensor_a)
         all_deltas.append(delta.flatten())
@@ -68,20 +68,20 @@ def generate_significance_mask(
             if key not in state_dict_b:
                 continue
 
-            if state_dict_a[key].shape != state_dict_b[key].shape:
+            if key in task_masks:  # Skip already processed mismatched shapes
                 continue
 
             delta = torch.abs(state_dict_b[key] - state_dict_a[key])
             mask = delta >= final_threshold
             
             if torch.any(mask):
-                significance_masks[key] = mask
+                task_masks[key] = mask
                 coverage = mask.sum().item() / mask.numel() * 100
                 logger.info(f"{key}: {coverage:.2f}% parameters marked as significant")
 
-    logger.info(f"Generated masks for {len(significance_masks)} layers")
+    logger.info(f"Generated masks for {len(task_masks)} layers")
 
     print(f"Saving task mask to {output_path}")
-    torch.save(significance_masks, output_path)
+    torch.save(task_masks, output_path)
 
-    return significance_masks
+    return task_masks
