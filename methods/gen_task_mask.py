@@ -59,7 +59,9 @@ def generate_significance_mask(
     # Calculate threshold based on percentile
     if all_deltas:
         combined_deltas = torch.cat(all_deltas)
-        percentile_threshold = torch.quantile(combined_deltas, 1 - top_percentile)
+        sorted_deltas, _ = torch.sort(combined_deltas)
+        k = int(len(sorted_deltas) * (1 - top_percentile))
+        percentile_threshold = sorted_deltas[k]
         final_threshold = max(percentile_threshold.item(), min_threshold)
         
         logger.info(f"Calculated significance threshold: {final_threshold:.2e}")
