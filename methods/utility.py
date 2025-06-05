@@ -1,5 +1,7 @@
 from huggingface_hub import HfApi
+import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
+
 
 def load_model_weights(model_path: str) -> dict:
     """
@@ -14,6 +16,26 @@ def load_model_weights(model_path: str) -> dict:
     """
     model = AutoModelForCausalLM.from_pretrained(model_path)
     return model.state_dict()
+
+def minimum_tensor_slices(tensor_a: torch.Tensor, tensor_b: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+    """
+    Create and return minimum tensors for two input tensors.
+    
+    Args:
+        tensor_a (torch.Tensor): First tensor
+        tensor_b (torch.Tensor): Second tensor
+        
+    Returns:
+        tuple[torch.Tensor, torch.Tensor, dict]: (sliced tensor_a, sliced tensor_b, shape info)
+    """
+    min_shape = tuple(min(a, b) for a, b in zip(tensor_a.shape, tensor_b.shape))
+    slice_indices = tuple(slice(0, dim) for dim in min_shape)
+    
+    # Slice tensors to minimum shape
+    min_tensor_a = tensor_a[slice_indices]
+    min_tensor_b = tensor_b[slice_indices]
+    
+    return min_tensor_a, min_tensor_b
 
 def upload_to_hub(
     model_path: str,
