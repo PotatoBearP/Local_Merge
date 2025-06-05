@@ -38,6 +38,7 @@ def generate_significance_mask(
     task_masks = {}
     total_params = 0
     all_deltas = []
+    adjusted_tensors = {}  # Store adjusted tensors
 
     logger.info("Calculating parameter differences...")
     for key in state_dict_a.keys():
@@ -51,6 +52,8 @@ def generate_significance_mask(
         if tensor_a.shape != tensor_b.shape:
             tensor_a, tensor_b= minimum_tensor_slices(tensor_a, tensor_b)
             logger.warning(f"Shape mismatch for {key}: {tensor_a.shape} vs {tensor_b.shape}")
+            # Store adjusted tensors for later use
+            adjusted_tensors[key] = (tensor_a, tensor_b)
 
         delta = torch.abs(tensor_b - tensor_a)
         all_deltas.append(delta.flatten())
@@ -70,10 +73,14 @@ def generate_significance_mask(
             if key not in state_dict_b:
                 continue
 
-            if key in task_masks:  # Skip already processed mismatched shapes
-                continue
+            # Use adjusted tensors if available
+            if key in adjusted_tensors:
+                tensor_a, tensor_b = adjusted_tensors[key]
+            else:
+                tensor_a = state_dict_a[key]
+                tensor_b = state_dict_b[key]
 
-            delta = torch.abs(state_dict_b[key] - state_dict_a[key])
+            delta = torch.abs(tensor_b - tensor_a)
             mask = delta >= final_threshold
             
             if torch.any(mask):
