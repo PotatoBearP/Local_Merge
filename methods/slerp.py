@@ -1,6 +1,6 @@
 import torch
 import numpy as np
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import AutoModelForCausalLM, AutoTokenizer, AutoConfig
 from methods.utility import load_model_weights
 import logging
 
@@ -122,29 +122,19 @@ def slerp_models(
 
         merged_state_dict[key] = merged_tensor
 
-    logger.info(f"Saving merged model to {output_path}")
     model = AutoModelForCausalLM.from_pretrained(model_a_path)
     tokenizer = AutoTokenizer.from_pretrained(model_a_path)
     
-    # Clean up config to prevent serialization issues
-    if hasattr(model.config, '_name_or_path'):
-        model.config._name_or_path = ""
-    if hasattr(model.config, 'architectures'):
-        model.config.architectures = None
-    if hasattr(model.config, 'custom_pipelines'):
-        model.config.custom_pipelines = None
-    if hasattr(model.config, 'auto_map'):
-        model.config.auto_map = None
+    for attr in ['_name_or_path', 'architectures', 'custom_pipelines', 'auto_map']:
+        if hasattr(model.config, attr):
+            setattr(model.config, attr, None)
         
     # Load merged weights and save
     model.load_state_dict(merged_state_dict)
-    model = model.to(torch.bfloat16)
     
+    logger.info(f"Saving merged model to {output_path}")
     # Save with minimal config
-    model.save_pretrained(
-        output_path,
-        is_main_process=True,
-        save_function=torch.save,
-        safe_serialization=False  # Prevents safetensors serialization issues
-    )
+    torch.save(merged_state_dict, f"{output_path}/pytorch_model.bin")
+    model.config.save_pretrained(output_path)
     tokenizer.save_pretrained(output_path)
+
