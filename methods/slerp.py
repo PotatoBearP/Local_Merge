@@ -97,9 +97,13 @@ def slerp_models(
         tensor_b = state_dict_b[key]
 
         if tensor_a.shape != tensor_b.shape:
-            logger.warning(f"Skipping {key}: shape mismatch {tensor_a.shape} vs {tensor_b.shape}")
-            merged_state_dict[key] = tensor_a
-            continue
+            logger.warning(f"Shape mismatch for {key}: {tensor_a.shape} vs {tensor_b.shape}")
+            min_shape = tuple(min(s1, s2) for s1, s2 in zip(tensor_a.shape, tensor_b.shape))
+            sliced_a = tensor_a
+            sliced_b = tensor_b
+            for dim, size in enumerate(min_shape):
+                sliced_a = sliced_a.narrow(dim, 0, size)
+                sliced_b = sliced_b.narrow(dim, 0, size)
 
         if masks is not None and key in masks:
             mask = masks[key].to(tensor_a.device)
@@ -121,9 +125,26 @@ def slerp_models(
     logger.info(f"Saving merged model to {output_path}")
     model = AutoModelForCausalLM.from_pretrained(model_a_path)
     tokenizer = AutoTokenizer.from_pretrained(model_a_path)
+    
+    # Clean up config to prevent serialization issues
     if hasattr(model.config, '_name_or_path'):
         model.config._name_or_path = ""
+    if hasattr(model.config, 'architectures'):
+        model.config.architectures = None
+    if hasattr(model.config, 'custom_pipelines'):
+        model.config.custom_pipelines = None
+    if hasattr(model.config, 'auto_map'):
+        model.config.auto_map = None
+        
+    # Load merged weights and save
     model.load_state_dict(merged_state_dict)
     model = model.to(torch.bfloat16)
-    model.save_pretrained(output_path)
+    
+    # Save with minimal config
+    model.save_pretrained(
+        output_path,
+        is_main_process=True,
+        save_function=torch.save,
+        safe_serialization=False  # Prevents safetensors serialization issues
+    )
     tokenizer.save_pretrained(output_path)
