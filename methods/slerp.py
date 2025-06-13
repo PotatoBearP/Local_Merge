@@ -128,5 +128,6 @@ def slerp_models(
     if hasattr(model.config, '_name_or_path'):
         model.config._name_or_path = ""
     model.load_state_dict(merged_state_dict)
+    model = model.to(torch.float16)
     model.save_pretrained(output_path)
     tokenizer.save_pretrained(output_path)
