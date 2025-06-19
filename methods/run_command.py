@@ -3,6 +3,7 @@ from methods.slerp import slerp_models
 from methods.crop_splice import crop_model_deltas, splice_model_deltas
 from methods.utility import upload_to_hub
 from methods.gen_task_mask import generate_significance_mask
+from methods.replace import replace_masked_area
 
 @click.command("generate_mask")
 @click.argument("model_a_path", type=str)
@@ -49,6 +50,75 @@ def generate_mask(
             min_threshold=min_threshold
         )
         
+    except Exception as e:
+        click.echo(f"Error: {str(e)}", err=True)
+        raise click.Abort()
+    
+@click.command("replace_merge")
+@click.argument("model_a_path", type=str)
+@click.argument("model_b_path", type=str)
+@click.argument("mask_path", type=str)
+@click.argument("output_path", type=str)
+@click.option(
+    "--upload", "-u",
+    is_flag=True,
+    help="Upload model to Hugging Face Hub after replacing"
+)
+@click.option(
+    "--repo-name",
+    type=str,
+    help="Repository name for HF Hub (format: 'username/model-name')"
+)
+@click.option(
+    "--private",
+    is_flag=True,
+    help="Make the uploaded model repository private"
+)
+@click.option(
+    "--commit-message",
+    type=str,
+    help="Custom commit message for the upload"
+)
+def replace(
+    model_a_path: str,
+    model_b_path: str,
+    mask_path: str,
+    output_path: str,
+    upload: bool,
+    repo_name: str,
+    private: bool,
+    commit_message: str,
+):
+    """
+    Replace masked areas in model A with parameters from model B.
+    
+    Args:
+        model_a_path: Path to the base model
+        model_b_path: Path to the target model
+        mask_path: Path to the mask file
+        output_path: Path to save the resulting model
+    """
+    try:
+        replace_masked_area(
+            model_a_path=model_a_path,
+            model_b_path=model_b_path,
+            mask_path=mask_path,
+            output_path=output_path
+        )
+        click.echo(f"Successfully replaced masked areas, saved to: {output_path}")
+
+        if upload:
+            if not repo_name:
+                raise click.BadParameter("--repo-name is required when using --upload")
+            
+            hub_url = upload_to_hub(
+                model_path=output_path,
+                repo_name=repo_name,
+                private=private,
+                commit_message=commit_message
+            )
+            click.echo(f"Model uploaded successfully to: {hub_url}")
+
     except Exception as e:
         click.echo(f"Error: {str(e)}", err=True)
         raise click.Abort()
