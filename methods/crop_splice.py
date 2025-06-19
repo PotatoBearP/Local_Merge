@@ -11,8 +11,8 @@ def crop_model_deltas(
     model_a_path: str,
     model_b_path: str,
     output_path: str,
-    threshold: float = 1e-5,
-    save_deltas: Optional[str] = None
+    threshold: float = 1e-6,
+    norm: bool = False
 ) -> Dict[str, torch.Tensor]:
     """
     Crops and optionally saves the delta parameters between two models.
@@ -20,12 +20,12 @@ def crop_model_deltas(
     Args:
         model_a_path (str): Path to the base model
         model_b_path (str): Path to the target model
-        output_path (str): Path to save the resulting cropped vector
+        output_path (str): Path to save the resulting cropped vector or norm dict
         threshold (float): Minimum difference threshold to keep
-        save_deltas (Optional[str]): Path to save delta weights if specified
+        norm (bool): If True, save only module-wise norm of cropped deltas
 
     Returns:
-        Dict[str, torch.Tensor]: Dictionary of cropped delta parameters
+        Dict[str, torch.Tensor] or Dict[str, float]: Cropped deltas or module norms
     """
     print(f"Loading weights from model A: {model_a_path}")
     state_dict_a = load_model_weights(model_a_path)
@@ -33,7 +33,7 @@ def crop_model_deltas(
     print(f"Loading weights from model B: {model_b_path}")
     state_dict_b = load_model_weights(model_b_path)
 
-    deltas = {}
+    result = {}
     print("Calculating and cropping deltas...")
     for key in state_dict_a.keys():
         if key not in state_dict_b:
@@ -47,20 +47,26 @@ def crop_model_deltas(
             print(f"Skipping {key}: shape mismatch {tensor_a.shape} vs {tensor_b.shape}")
             continue
 
-        # Calculate delta and apply threshold (remove insignificant weights)
         delta = tensor_b - tensor_a
         mask = torch.abs(delta) >= threshold
         cropped_delta = delta * mask
 
-        # Store only significant deltas
-        if torch.any(cropped_delta):
-            deltas[key] = cropped_delta
+        if torch.any(mask):
+            if norm:
+                norm_value = torch.norm(cropped_delta.float()).item()
+                if norm_value > 0:
+                    result[key] = norm_value
+            else:
+                if torch.any(cropped_delta):
+                    result[key] = cropped_delta
 
-    # Save delta weights
-    print(f"Saving delta weights to {output_path}")
-    torch.save(deltas, output_path)
+    if norm:
+        print(f"Saving norm dict to {output_path}")
+    else:
+        print(f"Saving delta weights to {output_path}")
+    torch.save(result, output_path)
 
-    return deltas
+    return result
 
 def splice_model_deltas(
     base_model_path: str,
