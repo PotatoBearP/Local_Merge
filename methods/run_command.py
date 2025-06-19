@@ -3,7 +3,7 @@ from methods.slerp import slerp_models
 from methods.crop_splice import crop_model_deltas, splice_model_deltas
 from methods.utility import upload_to_hub
 from methods.gen_task_mask import generate_significance_mask
-from methods.replace import replace_masked_area
+from methods.replace_merge import replace_masked_area
 
 @click.command("generate_mask")
 @click.argument("model_a_path", type=str)
@@ -79,7 +79,7 @@ def generate_mask(
     type=str,
     help="Custom commit message for the upload"
 )
-def replace(
+def replace_merge(
     model_a_path: str,
     model_b_path: str,
     mask_path: str,
