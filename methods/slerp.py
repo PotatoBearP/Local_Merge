@@ -116,13 +116,13 @@ def slerp_models(
                 slerp_result = slerp_tensor(t, tensor_a, tensor_b)
                 merged_tensor = torch.where(mask, slerp_result, tensor_a)
                 coverage = mask.float().mean().item() * 100
-                logger.info(f"{key}: Applied SLERP to {coverage:.2f}% of parameters")
+                print(f"{key}: Applied SLERP to {coverage:.2f}% of parameters")
         else:
             merged_tensor = slerp_tensor(t, tensor_a, tensor_b)
 
         merged_state_dict[key] = merged_tensor
 
-    logger.info(f"Saving merged model to {output_path}")
+    print.info(f"Saving merged model to {output_path}")
     model = AutoModelForCausalLM.from_pretrained(model_a_path)
     tokenizer = AutoTokenizer.from_pretrained(model_a_path)
     if hasattr(model.config, '_name_or_path'):
