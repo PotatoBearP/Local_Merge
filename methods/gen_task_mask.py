@@ -2,10 +2,6 @@ import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from methods.utility import load_model_weights, minimum_tensor_slices
 from typing import Dict, Optional
-import logging
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 def generate_significance_mask(
     model_a_path: str,
@@ -29,10 +25,10 @@ def generate_significance_mask(
     Returns:
         Dict[str, torch.Tensor]: Dictionary of boolean masks for significant parameters
     """
-    logger.info(f"Loading weights from model A: {model_a_path}")
+    print(f"Loading weights from model A: {model_a_path}")
     state_dict_a = load_model_weights(model_a_path)
 
-    logger.info(f"Loading weights from model B: {model_b_path}")
+    print(f"Loading weights from model B: {model_b_path}")
     state_dict_b = load_model_weights(model_b_path)
 
     task_masks = {}
@@ -40,10 +36,10 @@ def generate_significance_mask(
     all_deltas = []
     adjusted_tensors = {}  # Store adjusted tensors
 
-    logger.info("Calculating parameter differences...")
+    print("Calculating parameter differences...")
     for key in state_dict_a.keys():
         if key not in state_dict_b:
-            logger.warning(f"Skipping {key}: not found in model B")
+            print(f"Skipping {key}: not found in model B")
             continue
 
         tensor_a = state_dict_a[key]
@@ -51,7 +47,7 @@ def generate_significance_mask(
 
         if tensor_a.shape != tensor_b.shape:
             tensor_a, tensor_b= minimum_tensor_slices(tensor_a, tensor_b)
-            logger.warning(f"Shape mismatch for {key}: {tensor_a.shape} vs {tensor_b.shape}")
+            print(f"Shape mismatch for {key}: {tensor_a.shape} vs {tensor_b.shape}")
             # Store adjusted tensors for later use
             adjusted_tensors[key] = (tensor_a, tensor_b)
 
@@ -67,7 +63,7 @@ def generate_significance_mask(
         percentile_threshold = sorted_deltas[k]
         final_threshold = max(percentile_threshold.item(), min_threshold)
         
-        logger.info(f"Calculated significance threshold: {final_threshold:.2e}")
+        print(f"Calculated significance threshold: {final_threshold:.2e}")
 
         for key in state_dict_a.keys():
             if key not in state_dict_b:
@@ -86,9 +82,9 @@ def generate_significance_mask(
             if torch.any(mask):
                 task_masks[key] = mask
                 coverage = mask.sum().item() / mask.numel() * 100
-                logger.info(f"{key}: {coverage:.2f}% parameters marked as significant")
+                print(f"{key}: {coverage:.2f}% parameters marked as significant")
 
-    logger.info(f"Generated masks for {len(task_masks)} layers")
+    print(f"Generated masks for {len(task_masks)} layers")
 
     print(f"Saving task mask to {output_path}")
     torch.save(task_masks, output_path)
