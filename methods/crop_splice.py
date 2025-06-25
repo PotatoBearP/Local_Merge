@@ -12,7 +12,8 @@ def crop_model_deltas(
     model_b_path: str,
     output_path: str,
     threshold: float = 1e-6,
-    norm: bool = False
+    norm: bool = False,
+    splits: Optional[int] = None
 ) -> Dict[str, torch.Tensor]:
     """
     Crops and optionally saves the delta parameters between two models.
@@ -23,6 +24,7 @@ def crop_model_deltas(
         output_path (str): Path to save the resulting cropped vector or norm dict
         threshold (float): Minimum difference threshold to keep
         norm (bool): If True, save only module-wise norm of cropped deltas
+        splits (int, optional): Number of splits per tensor (along dim 0)
 
     Returns:
         Dict[str, torch.Tensor] or Dict[str, float]: Cropped deltas or module norms
@@ -36,6 +38,7 @@ def crop_model_deltas(
     result = {}
     print("Calculating and cropping deltas...")
     for key in state_dict_a.keys():
+        print(f"Processing {key}")
         if key not in state_dict_b:
             print(f"Skipping {key}: not found in model B")
             continue
@@ -51,19 +54,27 @@ def crop_model_deltas(
         mask = torch.abs(delta) >= threshold
         cropped_delta = delta * mask
 
-        if torch.any(mask):
+        if not torch.any(mask):
+            continue
+
+        if splits is not None and tensor_a.ndim >= 1 and tensor_a.shape[0] >= splits:
+            split_chunks = torch.chunk(cropped_delta, splits, dim=0)
+            if norm:
+                norm_list = [torch.norm(chunk.float()).item() for chunk in split_chunks]
+                if any(n > 0 for n in norm_list):
+                    result[key] = norm_list
+            else:
+                if any(torch.any(chunk) for chunk in split_chunks):
+                    result[key] = split_chunks  # or torch.stack(split_chunks) if you prefer tensor
+        else:
             if norm:
                 norm_value = torch.norm(cropped_delta.float()).item()
                 if norm_value > 0:
                     result[key] = norm_value
             else:
-                if torch.any(cropped_delta):
-                    result[key] = cropped_delta
+                result[key] = cropped_delta
 
-    if norm:
-        print(f"Saving norm dict to {output_path}")
-    else:
-        print(f"Saving delta weights to {output_path}")
+    print(f"Saving {'norm' if norm else 'delta'} dict to {output_path}")
     torch.save(result, output_path)
 
     return result

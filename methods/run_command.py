@@ -230,21 +230,26 @@ def slerp_merge(
     is_flag=True,
     help="If set, save only module-wise norm of cropped deltas"
 )
+@click.option(
+    "--splits", "-s",
+    type=int,
+    default=None,
+    help="If set, split each tensor into N chunks and store them under the same key"
+)
 def crop(
     model_a_path: str,
     model_b_path: str,
     output_path: str,
     threshold: float,
-    norm: bool
+    norm: bool,
+    splits: int
 ):
     """
     Crops delta weights between two models and saves them.
-    
-    Args:
-        model_a_path: Path to the base model
-        model_b_path: Path to the target model
-        output_path: Path to save delta weights
-        threshold: Minimum difference threshold
+
+    MODEL_A_PATH: Path to the base model
+    MODEL_B_PATH: Path to the target model
+    OUTPUT_PATH: File path to save the cropped delta weights
     """
     try:
         crop_model_deltas(
@@ -252,9 +257,9 @@ def crop(
             model_b_path=model_b_path,
             output_path=output_path,
             threshold=threshold,
-            norm=norm
+            norm=norm,
+            splits=splits
         )
-
     except Exception as e:
         click.echo(f"Error: {str(e)}", err=True)
         raise click.Abort()
