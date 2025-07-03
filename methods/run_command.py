@@ -4,6 +4,7 @@ from methods.crop_splice import crop_model_deltas, splice_model_deltas
 from methods.utility import upload_to_hub
 from methods.gen_task_mask import generate_significance_mask
 from methods.replace_merge import replace_masked_area
+from evaluation.run_eval import evaluate_model_on_tasks
 
 @click.command("generate_mask")
 @click.argument("model_a_path", type=str)
@@ -328,6 +329,33 @@ def splice(
     except Exception as e:
         click.echo(f"Error: {str(e)}", err=True)
         raise click.Abort()
+    
+@click.command("evaluate")
+@click.argument("model_path", type=str)
+@click.option("--tasks", default="winogrande", help="Comma-separated list of tasks")
+@click.option("--output-json", type=str, required=True, help="Path to save JSON result")
+@click.option("--batch-size", type=int, default=4, help="Batch size for evaluation")
+@click.option("--max-tokens", type=int, default=512, help="Max tokens for generation")
+@click.option("--device", type=str, default="cuda", help="Device to use: cuda or cpu")
+def evaluate(model_path, tasks, output_json, batch_size, max_tokens, device):
+    try:
+        tasks = [task.strip() for task in tasks.split(",") if task.strip()]
+        result = evaluate_model_on_tasks(
+            model_path=model_path,
+            tasks=tasks,
+            output_path=output_json,
+            batch_size=batch_size,
+            max_tokens=max_tokens,
+            device=device
+        )
+        click.echo("\n===== Evaluation Summary =====")
+        for k, v in result.items():
+            click.echo(f"{k}: {v:.4f}" if isinstance(v, float) else f"{k}: {v}")
+    except Exception as e:
+        click.echo(f"Error during evaluation: {str(e)}", err=True)
+        raise click.Abort()
+
+
 
 def main():
     pass

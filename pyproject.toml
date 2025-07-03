@@ -14,6 +14,8 @@ dependencies = [
     "click>=8.1.7",
     "torch>=2.6.0",
     "numpy>=2.0.0,<3.0.0",
+    "tqdm>=4.66.1",
+    "datasets>=2.16.1",
 ]
 
 [project.urls]
@@ -26,8 +28,10 @@ replace_merge = "methods.run_command:replace_merge"
 splice = "methods.run_command:splice"
 crop = "methods.run_command:crop"
 generate_mask = "methods.run_command:generate_mask"
+evaluate = "methods.run_command:evaluate"
 
 [tool.setuptools]
 packages = [
     "methods",
+    "evaluation",
 ]
