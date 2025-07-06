@@ -4,9 +4,9 @@ from typing import List, Dict, Any
 from transformers import AutoTokenizer, AutoModelForCausalLM
 
 from evaluation.winogrande_eval import evaluate_winogrande
-from evaluation.truthfulqa_eval import evaluate_truthfulqa
-from evaluation.mmlu_eval import evaluate_mmlu
-from evaluation.humaneval_eval import evaluate_humaneval
+# from evaluation.truthfulqa_eval import evaluate_truthfulqa
+# from evaluation.mmlu_eval import evaluate_mmlu
+# from evaluation.humaneval_eval import evaluate_humaneval
 
 def evaluate_model_on_tasks(
     model_path: str,
