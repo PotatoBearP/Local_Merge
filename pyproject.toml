@@ -16,6 +16,7 @@ dependencies = [
     "numpy>=2.0.0,<3.0.0",
     "tqdm>=4.66.1",
     "datasets>=2.16.1",
+    "bitsandbytes>=0.45.1",
 ]
 
 [project.urls]
