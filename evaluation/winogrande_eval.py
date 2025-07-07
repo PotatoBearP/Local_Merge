@@ -84,10 +84,11 @@ def evaluate_winogrande(
     print(f"Model loaded with dtype: {model.dtype}")
     print(f"Model on device: {next(model.parameters()).device}")
 
-    dataset = datasets.load_dataset("winogrande", "winogrande_xl", split="validation", trust_remote_code=True)
+    dataset = datasets.load_dataset("winogrande", "winogrande_xl", split="test", trust_remote_code=True)
     correct = 0
     total = 0
     results = []
+    random.seed(1234)
 
     shot_examples = random.sample(list(dataset), 5)
 
@@ -104,7 +105,7 @@ def evaluate_winogrande(
     for i in tqdm(range(0, len(dataset), batch_size), desc="Evaluating Winogrande 5-shot"):
         batch = dataset[i:i + batch_size]
         batch = [dict(zip(batch.keys(), values)) for values in zip(*batch.values())]
-        
+
         prompts = [
             shot_context + f"Q: {ex['sentence']}\nA: {ex['option1']} or {ex['option2']}\nAnswer:"
             for ex in batch
