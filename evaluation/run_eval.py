@@ -23,15 +23,15 @@ def evaluate_model_on_tasks(
     if isinstance(tasks, str):
         tasks = [t.strip() for t in tasks.split(",") if t.strip()]
 
-    model = AutoModelForCausalLM.from_pretrained(model_path).to(device)
-    tokenizer = AutoTokenizer.from_pretrained(model_path, use_fast=True)
-    tokenizer.pad_token = tokenizer.eos_token
-    
     task_results = {}
     for task in tasks:
         task = task.lower()
         if task == "winogrande":
-            task_results["winogrande"] = evaluate_winogrande(model, tokenizer, batch_size, device)
+            task_results["winogrande"] = evaluate_winogrande(
+                model_name_or_path=model_path,
+                batch_size=batch_size,
+                device=device
+            )
         # elif task == "truthfulqa":
         #     task_results["truthfulqa"] = evaluate_truthfulqa(model, tokenizer, batch_size, device)
         # elif task == "mmlu":
