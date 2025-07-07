@@ -5,35 +5,36 @@ from tqdm import tqdm
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 import json
 
-def compute_log_probs_conditional(model, tokenizer, prompts, continuations, device):
-    """Compute log-probs for `continuations` conditioned on `prompts` (one-by-one for low memory)."""
+def compute_log_probs_conditional_batch(model, tokenizer, prompts, continuations, device):
+    """Compute log-probs for `continuations` conditioned on `prompts` in batch."""
     model.eval()
     results = []
 
+    full_texts = [p + c for p, c in zip(prompts, continuations)]
+    encodings = tokenizer(full_texts, return_tensors="pt", padding=True, truncation=True).to(device)
+
+    input_ids = encodings["input_ids"]
+    attention_mask = encodings["attention_mask"]
+
+    prompt_lens = [len(tokenizer(p, add_special_tokens=False)["input_ids"]) for p in prompts]
+
+    target_ids = input_ids.clone()
+    for i, plen in enumerate(prompt_lens):
+        target_ids[i, :plen] = -100  # ignore prompt tokens in loss
+
     with torch.inference_mode():
-        for prompt, continuation in zip(prompts, continuations):
-            full_text = prompt + continuation
+        outputs = model(input_ids, attention_mask=attention_mask)
+        logits = outputs.logits
 
-            enc = tokenizer(full_text, return_tensors="pt").to(device)
-            input_ids = enc["input_ids"]
-            prompt_len = len(tokenizer(prompt, add_special_tokens=False)["input_ids"])
+        shift_logits = logits[:, :-1, :].contiguous()
+        shift_labels = target_ids[:, 1:].contiguous()
 
-            # Target only continuation tokens
-            target_ids = input_ids.clone()
-            target_ids[:, :prompt_len] = -100  # ignore prompt in loss
+        loss_fct = torch.nn.CrossEntropyLoss(reduction="none")
+        loss = loss_fct(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
+        loss = loss.view(shift_labels.size())
 
-            outputs = model(input_ids)
-            logits = outputs.logits
-
-            shift_logits = logits[:, :-1, :].contiguous()
-            shift_labels = target_ids[:, 1:].contiguous()
-
-            loss_fct = torch.nn.CrossEntropyLoss(reduction="none")
-            loss = loss_fct(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
-            loss = loss.view(shift_labels.size())
-
-            # Only sum continuation losses
-            loss_sum = loss[target_ids[:, 1:] != -100].sum()
+        for i in range(loss.size(0)):
+            loss_sum = loss[i][shift_labels[i] != -100].sum()
             results.append(-loss_sum.item())
 
     return results
@@ -84,7 +85,9 @@ def evaluate_winogrande(
     print(f"Model loaded with dtype: {model.dtype}")
     print(f"Model on device: {next(model.parameters()).device}")
 
-    dataset = datasets.load_dataset("winogrande", "winogrande_xl", split="test", trust_remote_code=True)
+    dataset = datasets.load_dataset("winogrande", "winogrande_xl", split="validation", trust_remote_code=True)
+    dataset = dataset.shuffle(seed=1234).select(range(int(0.25 * len(dataset))))
+
     correct = 0
     total = 0
     results = []
@@ -113,8 +116,8 @@ def evaluate_winogrande(
         continuations_1 = [ex["option1"] for ex in batch]
         continuations_2 = [ex["option2"] for ex in batch]
 
-        logp_1 = compute_log_probs_conditional(model, tokenizer, prompts, continuations_1, model_device)
-        logp_2 = compute_log_probs_conditional(model, tokenizer, prompts, continuations_2, model_device)
+        logp_1 = compute_log_probs_conditional_batch(model, tokenizer, prompts, continuations_1, model_device)
+        logp_2 = compute_log_probs_conditional_batch(model, tokenizer, prompts, continuations_2, model_device)
 
         for j, ex in enumerate(batch):
             pred = "1" if logp_1[j] > logp_2[j] else "2"
