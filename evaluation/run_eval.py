@@ -19,13 +19,14 @@ def evaluate_model_on_tasks(
     """
     Evaluate a causal LLM on selected tasks and save results to JSON.
     """
+    print(f"Using device: {device}")
     if isinstance(tasks, str):
         tasks = [t.strip() for t in tasks.split(",") if t.strip()]
 
     model = AutoModelForCausalLM.from_pretrained(model_path).to(device)
     tokenizer = AutoTokenizer.from_pretrained(model_path, use_fast=True)
     tokenizer.pad_token = tokenizer.eos_token
-
+    
     task_results = {}
     for task in tasks:
         task = task.lower()

@@ -52,7 +52,6 @@ def evaluate_winogrande(
 ) -> float:
 
     print(f"Loading model: {model_name_or_path}...")
-    print(f"Using device: {device}")
 
     if load_in_4bit or load_in_8bit:
         if quantization_config is None:
