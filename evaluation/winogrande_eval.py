@@ -2,9 +2,8 @@ import torch
 import datasets
 import random
 from tqdm import tqdm
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 import json
-from bitsandbytes import BitsAndBytesConfig
 
 def compute_log_probs_conditional(model, tokenizer, prompts, continuations, device):
     """Compute log-probs for `continuations` conditioned on `prompts` (one-by-one for low memory)."""
@@ -53,6 +52,7 @@ def evaluate_winogrande(
 ) -> float:
 
     print(f"Loading model: {model_name_or_path}...")
+    print(f"Using device: {device}")
 
     if load_in_4bit or load_in_8bit:
         if quantization_config is None:
