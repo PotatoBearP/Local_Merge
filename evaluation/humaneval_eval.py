@@ -49,7 +49,7 @@ def evaluate_humaneval(
     model_name_or_path: str,
     batch_size: int = 1,
     device: str = "cuda",
-    samples_per_task: int = 5,
+    samples_per_task: int = 1,
     output_json: str = "humaneval_results.json",
     torch_dtype: torch.dtype = torch.bfloat16,
     load_in_8bit: bool = False,
@@ -93,6 +93,7 @@ def evaluate_humaneval(
     print(f"Model on device: {next(model.parameters()).device}")
 
     dataset = datasets.load_dataset("openai_humaneval", split="test")
+    dataset = dataset.shuffle(seed=1234).select(range(int(0.5 * len(dataset))))
     results = []
 
     pass_counts = []

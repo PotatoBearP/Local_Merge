@@ -85,7 +85,7 @@ def evaluate_winogrande(
     print(f"Model on device: {next(model.parameters()).device}")
 
     dataset = datasets.load_dataset("winogrande", "winogrande_xl", split="validation", trust_remote_code=True)
-    dataset = dataset.shuffle(seed=1234).select(range(int(0.25 * len(dataset))))
+    dataset = dataset.shuffle(seed=1234).select(range(int(0.5 * len(dataset))))
 
     correct = 0
     total = 0

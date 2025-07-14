@@ -87,8 +87,8 @@ def evaluate_mmlu(
     print(f"Model loaded with dtype: {model.dtype}")
     print(f"Model on device: {next(model.parameters()).device}")
 
-    dataset = datasets.load_dataset("hendrycks_test", subject, split="test")
-    dataset = dataset.shuffle(seed=1234).select(range(int(0.25 * len(dataset))))  # Optional downsample
+    dataset = datasets.load_dataset("hendrycks_test", subject, split="validation")
+    dataset = dataset.shuffle(seed=1234).select(range(int(0.5 * len(dataset))))  # Optional downsample
 
     correct = 0
     total = 0

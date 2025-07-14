@@ -87,7 +87,7 @@ def evaluate_truthfulqa_mc2(
     print(f"Model on device: {next(model.parameters()).device}")
 
     dataset = datasets.load_dataset("truthful_qa", "mc2", split="validation")
-    dataset = dataset.shuffle(seed=1234).select(range(int(0.25 * len(dataset))))  # Optional downsample for speed.
+    dataset = dataset.shuffle(seed=1234).select(range(int(0.5 * len(dataset))))  # Optional downsample for speed.
 
     correct = 0
     total = 0
