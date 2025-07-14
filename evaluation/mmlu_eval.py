@@ -5,6 +5,7 @@ from tqdm import tqdm
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 import json
 
+
 def compute_log_probs_batch(model, tokenizer, prompts, continuations, device):
     model.eval()
     results = []
@@ -38,11 +39,13 @@ def compute_log_probs_batch(model, tokenizer, prompts, continuations, device):
 
     return results
 
-def evaluate_winogrande(
+
+def evaluate_mmlu(
     model_name_or_path: str,
+    subject: str = "abstract_algebra",
     batch_size: int = 4,
     device: str = "cuda",
-    output_json: str = "winogrande_eval_results.json",
+    output_json: str = "mmlu_eval_results.json",
     torch_dtype: torch.dtype = torch.bfloat16,
     load_in_8bit: bool = False,
     load_in_4bit: bool = False,
@@ -84,60 +87,67 @@ def evaluate_winogrande(
     print(f"Model loaded with dtype: {model.dtype}")
     print(f"Model on device: {next(model.parameters()).device}")
 
-    dataset = datasets.load_dataset("winogrande", "winogrande_xl", split="validation", trust_remote_code=True)
-    dataset = dataset.shuffle(seed=1234).select(range(int(0.25 * len(dataset))))
+    dataset = datasets.load_dataset("hendrycks_test", subject, split="test")
+    dataset = dataset.shuffle(seed=1234).select(range(int(0.25 * len(dataset))))  # Optional downsample
 
     correct = 0
     total = 0
     results = []
-    random.seed(1234)
 
-    shot_examples = random.sample(list(dataset), 5)
+    # 5-shot prompt examples
+    few_shot_examples = random.sample(list(dataset), 5)
 
     def format_example(ex, include_answer=True):
-        ans_text = ex['option1'] if ex['answer'] == '1' else ex['option2']
+        text = f"Q: {ex['question']}\nA:\n(A) {ex['choices'][0]}\n(B) {ex['choices'][1]}\n(C) {ex['choices'][2]}\n(D) {ex['choices'][3]}\n"
         if include_answer:
-            return f"Q: {ex['sentence']}\nA: {ex['option1']} or {ex['option2']}\nAnswer: {ans_text}\n"
+            return text + f"Answer: {ex['answer']}\n"
         else:
-            return f"Q: {ex['sentence']}\nA: {ex['option1']} or {ex['option2']}\nAnswer:"
+            return text + "Answer:"
 
-    shot_context = "".join([format_example(ex) for ex in shot_examples])
+    few_shot_context = "".join([format_example(ex) for ex in few_shot_examples])
     model_device = next(model.parameters()).device
 
-    for i in tqdm(range(0, len(dataset), batch_size), desc="Evaluating Winogrande 5-shot"):
+    for i in tqdm(range(0, len(dataset), batch_size), desc=f"Evaluating MMLU {subject} 5-shot"):
         batch = dataset[i:i + batch_size]
         batch = [dict(zip(batch.keys(), values)) for values in zip(*batch.values())]
 
         prompts = [
-            shot_context + f"Q: {ex['sentence']}\nA: {ex['option1']} or {ex['option2']}\nAnswer:"
+            few_shot_context + format_example(ex, include_answer=False)
             for ex in batch
         ]
-        continuations_1 = [ex["option1"] for ex in batch]
-        continuations_2 = [ex["option2"] for ex in batch]
 
-        logp_1 = compute_log_probs_batch(model, tokenizer, prompts, continuations_1, model_device)
-        logp_2 = compute_log_probs_batch(model, tokenizer, prompts, continuations_2, model_device)
+        choices = ["A", "B", "C", "D"]
+        logp_all_choices = []
+
+        for choice in choices:
+            continuations = [f" {choice}" for _ in batch]
+            logps = compute_log_probs_batch(model, tokenizer, prompts, continuations, model_device)
+            logp_all_choices.append(logps)
+
+        logp_all_choices = torch.tensor(logp_all_choices).T  # (batch_size, 4)
 
         for j, ex in enumerate(batch):
-            pred = "1" if logp_1[j] > logp_2[j] else "2"
-            is_correct = pred == ex["answer"]
+            best_choice_idx = int(logp_all_choices[j].argmax())
+            pred_choice = choices[best_choice_idx]
+            gt_choice = ex["answer"]
+
+            is_correct = pred_choice == gt_choice
             if is_correct:
                 correct += 1
             total += 1
+
             results.append({
-                "question": ex['sentence'],
-                "llm_choices": [ex['option1'], ex['option2']],
-                "correct_choice": ex['option1'] if ex['answer'] == "1" else ex['option2'],
-                "label": ex['answer'],
-                "prediction": pred,
+                "question": ex["question"],
+                "choices": ex["choices"],
+                "correct_answer": ex["answer"],
+                "prediction": pred_choice,
                 "is_correct": is_correct,
-                "logp_choice1": logp_1[j],
-                "logp_choice2": logp_2[j]
+                "logp_choices": {choices[k]: logp_all_choices[j][k].item() for k in range(4)},
             })
 
     with open(output_json, "w", encoding="utf-8") as f:
         json.dump(results, f, indent=2, ensure_ascii=False)
 
     accuracy = correct / total * 100.0
-    print(f"Winogrande 5-shot Accuracy: {accuracy:.2f}%")
+    print(f"MMLU {subject} 5-shot Accuracy: {accuracy:.2f}%")
     return accuracy

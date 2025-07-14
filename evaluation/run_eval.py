@@ -4,9 +4,9 @@ from typing import List, Dict, Any
 from transformers import AutoTokenizer, AutoModelForCausalLM
 
 from evaluation.winogrande_eval import evaluate_winogrande
-# from evaluation.truthfulqa_eval import evaluate_truthfulqa
-# from evaluation.mmlu_eval import evaluate_mmlu
-# from evaluation.humaneval_eval import evaluate_humaneval
+from evaluation.truthfulqa_eval import evaluate_truthfulqa_mc2
+from evaluation.mmlu_eval import evaluate_mmlu
+from evaluation.humaneval_eval import evaluate_humaneval
 
 def evaluate_model_on_tasks(
     model_path: str,
@@ -32,12 +32,24 @@ def evaluate_model_on_tasks(
                 batch_size=batch_size,
                 device=device
             )
-        # elif task == "truthfulqa":
-        #     task_results["truthfulqa"] = evaluate_truthfulqa(model, tokenizer, batch_size, device)
-        # elif task == "mmlu":
-        #     task_results["mmlu"] = evaluate_mmlu(model, tokenizer, batch_size, device)
-        # elif task == "humaneval":
-        #     task_results["humaneval"] = evaluate_humaneval(model, tokenizer, max_tokens, device)
+        elif task == "truthfulqa":
+            task_results["truthfulqa"] = evaluate_truthfulqa_mc2(
+                model_name_or_path=model_path,
+                batch_size=batch_size,
+                device=device
+            )
+        elif task == "mmlu":
+            task_results["mmlu"] = evaluate_mmlu(
+                model_name_or_path=model_path,
+                batch_size=batch_size,
+                device=device
+            )
+        elif task == "humaneval":
+            task_results["humaneval"] = evaluate_humaneval(
+                model_name_or_path=model_path,
+                batch_size=batch_size,
+                device=device
+            )
         else:
             raise ValueError(f"Unsupported task: {task}")
 

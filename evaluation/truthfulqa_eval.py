@@ -5,6 +5,7 @@ from tqdm import tqdm
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 import json
 
+
 def compute_log_probs_batch(model, tokenizer, prompts, continuations, device):
     model.eval()
     results = []
@@ -38,11 +39,12 @@ def compute_log_probs_batch(model, tokenizer, prompts, continuations, device):
 
     return results
 
-def evaluate_winogrande(
+
+def evaluate_truthfulqa_mc2(
     model_name_or_path: str,
     batch_size: int = 4,
     device: str = "cuda",
-    output_json: str = "winogrande_eval_results.json",
+    output_json: str = "truthfulqa_eval_results.json",
     torch_dtype: torch.dtype = torch.bfloat16,
     load_in_8bit: bool = False,
     load_in_4bit: bool = False,
@@ -84,60 +86,53 @@ def evaluate_winogrande(
     print(f"Model loaded with dtype: {model.dtype}")
     print(f"Model on device: {next(model.parameters()).device}")
 
-    dataset = datasets.load_dataset("winogrande", "winogrande_xl", split="validation", trust_remote_code=True)
-    dataset = dataset.shuffle(seed=1234).select(range(int(0.25 * len(dataset))))
+    dataset = datasets.load_dataset("truthful_qa", "mc2", split="validation")
+    dataset = dataset.shuffle(seed=1234).select(range(int(0.25 * len(dataset))))  # Optional downsample for speed.
 
     correct = 0
     total = 0
     results = []
-    random.seed(1234)
 
-    shot_examples = random.sample(list(dataset), 5)
-
-    def format_example(ex, include_answer=True):
-        ans_text = ex['option1'] if ex['answer'] == '1' else ex['option2']
-        if include_answer:
-            return f"Q: {ex['sentence']}\nA: {ex['option1']} or {ex['option2']}\nAnswer: {ans_text}\n"
-        else:
-            return f"Q: {ex['sentence']}\nA: {ex['option1']} or {ex['option2']}\nAnswer:"
-
-    shot_context = "".join([format_example(ex) for ex in shot_examples])
     model_device = next(model.parameters()).device
 
-    for i in tqdm(range(0, len(dataset), batch_size), desc="Evaluating Winogrande 5-shot"):
+    for i in tqdm(range(0, len(dataset), batch_size), desc="Evaluating TruthfulQA MC2"):
         batch = dataset[i:i + batch_size]
         batch = [dict(zip(batch.keys(), values)) for values in zip(*batch.values())]
 
-        prompts = [
-            shot_context + f"Q: {ex['sentence']}\nA: {ex['option1']} or {ex['option2']}\nAnswer:"
-            for ex in batch
-        ]
-        continuations_1 = [ex["option1"] for ex in batch]
-        continuations_2 = [ex["option2"] for ex in batch]
+        prompts = [f"Q: {ex['question']}\nA:" for ex in batch]
+        all_choices = [ex["mc2_targets"]["choices"] for ex in batch]
+        correct_answers = [ex["mc2_targets"]["labels"][0] for ex in batch]
 
-        logp_1 = compute_log_probs_batch(model, tokenizer, prompts, continuations_1, model_device)
-        logp_2 = compute_log_probs_batch(model, tokenizer, prompts, continuations_2, model_device)
+        # Compute log-probs for each choice.
+        choice_logps = []
+        for choices in all_choices:
+            logps = compute_log_probs_batch(model, tokenizer, prompts * len(choices), choices, model_device)
+            choice_logps.append(logps)
 
         for j, ex in enumerate(batch):
-            pred = "1" if logp_1[j] > logp_2[j] else "2"
-            is_correct = pred == ex["answer"]
+            choices = all_choices[j]
+            logps = choice_logps[j]
+            best_choice_idx = int(torch.tensor(logps).argmax())
+            pred_choice = choices[best_choice_idx]
+            gt_choice = correct_answers[j]
+
+            is_correct = pred_choice == gt_choice
             if is_correct:
                 correct += 1
             total += 1
+
             results.append({
-                "question": ex['sentence'],
-                "llm_choices": [ex['option1'], ex['option2']],
-                "correct_choice": ex['option1'] if ex['answer'] == "1" else ex['option2'],
-                "label": ex['answer'],
-                "prediction": pred,
+                "question": ex["question"],
+                "llm_choices": choices,
+                "correct_choice": gt_choice,
+                "prediction": pred_choice,
                 "is_correct": is_correct,
-                "logp_choice1": logp_1[j],
-                "logp_choice2": logp_2[j]
+                "logp_choices": dict(zip(choices, logps)),
             })
 
     with open(output_json, "w", encoding="utf-8") as f:
         json.dump(results, f, indent=2, ensure_ascii=False)
 
     accuracy = correct / total * 100.0
-    print(f"Winogrande 5-shot Accuracy: {accuracy:.2f}%")
+    print(f"TruthfulQA MC2 0-shot Accuracy: {accuracy:.2f}%")
     return accuracy
