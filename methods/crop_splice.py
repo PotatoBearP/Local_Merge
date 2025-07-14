@@ -3,9 +3,18 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from methods.utility import load_model_weights
 from typing import Dict, Optional
 import logging
+import numpy as np
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+THRESHOLD = 1e-6
+
+def safe_norm(tensor):
+    numel = tensor.numel()
+    if numel == 0:
+        return 0.0
+    return tensor.norm().item() / np.sqrt(numel)
 
 def crop_model_deltas(
     model_a_path: str,
@@ -57,22 +66,22 @@ def crop_model_deltas(
         if not torch.any(mask):
             continue
 
-        if splits is not None and tensor_a.ndim >= 1 and tensor_a.shape[0] >= splits:
+        if splits is not None and cropped_delta.ndim >= 1 and cropped_delta.shape[0] >= splits:
             split_chunks = torch.chunk(cropped_delta, splits, dim=0)
             if norm:
-                norm_list = [torch.norm(chunk.float()).item() for chunk in split_chunks]
-                if any(n > 0 for n in norm_list):
+                norm_list = [safe_norm(chunk.float()) for chunk in split_chunks]
+                if any(n > THRESHOLD for n in norm_list):
                     result[key] = norm_list
             else:
-                if any(torch.any(chunk) for chunk in split_chunks):
-                    result[key] = split_chunks  # or torch.stack(split_chunks) if you prefer tensor
+                if any(chunk.any().item() for chunk in split_chunks):
+                    result[key] = [chunk.detach().cpu() for chunk in split_chunks]
         else:
             if norm:
-                norm_value = torch.norm(cropped_delta.float()).item()
-                if norm_value > 0:
+                norm_value = safe_norm(cropped_delta.float())
+                if norm_value > THRESHOLD:
                     result[key] = norm_value
             else:
-                result[key] = cropped_delta
+                result[key] = cropped_delta.detach().cpu()
 
     print(f"Saving {'norm' if norm else 'delta'} dict to {output_path}")
     torch.save(result, output_path)
