@@ -122,12 +122,14 @@ def slerp_models(
 
         merged_state_dict[key] = merged_tensor
 
-    print(f"Saving merged model to {output_path}")
+    print(f"Replacing base model")
     model = AutoModelForCausalLM.from_pretrained(model_a_path)
     tokenizer = AutoTokenizer.from_pretrained(model_a_path)
     if hasattr(model.config, '_name_or_path'):
         model.config._name_or_path = ""
     model.load_state_dict(merged_state_dict)
+    
+    print(f"Saving merged model to {output_path}")
     model = model.to(torch.float16)
     model.save_pretrained(output_path)
     tokenizer.save_pretrained(output_path)
