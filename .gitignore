@@ -1,1 +1,7 @@
 .vscode/settings.json
+backups/evaluation/winogrande_eval.py
+backups/evaluation/gsm8k_eval.py
+backups/evaluation/humaneval_eval.py
+backups/evaluation/mmlu_eval.py
+backups/evaluation/run_eval.py
+backups/evaluation/truthfulqa_eval.py

@@ -24,15 +24,14 @@ repository = "https://github.com/PotatoBearP/Merge_from_Scratch"
 
 
 [project.scripts]
-slerp_merge = "methods.run_command:slerp_merge"
-replace_merge = "methods.run_command:replace_merge"
-splice = "methods.run_command:splice"
-crop = "methods.run_command:crop"
-generate_mask = "methods.run_command:generate_mask"
-evaluate = "methods.run_command:evaluate"
+slerp_merge = "src.run_command:slerp_merge"
+replace_merge = "src.run_command:replace_merge"
+splice = "src.run_command:splice"
+crop = "src.run_command:crop"
+generate_mask = "src.run_command:generate_mask"
+evaluate = "src.run_command:evaluate"
 
 [tool.setuptools]
 packages = [
-    "methods",
-    "evaluation",
+    "src",
 ]

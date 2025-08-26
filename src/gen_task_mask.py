@@ -1,6 +1,6 @@
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
-from methods.utility import load_model_weights, minimum_tensor_slices
+from src.utility import load_model_weights, minimum_tensor_slices
 from typing import Dict, Optional
 
 def generate_significance_mask(

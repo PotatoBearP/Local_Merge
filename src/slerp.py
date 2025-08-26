@@ -1,7 +1,7 @@
 import torch
 import numpy as np
 from transformers import AutoModelForCausalLM, AutoTokenizer
-from methods.utility import load_model_weights
+from src.utility import load_model_weights
 import logging
 
 logging.basicConfig(level=logging.INFO)

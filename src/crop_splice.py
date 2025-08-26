@@ -1,12 +1,8 @@
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
-from methods.utility import load_model_weights
+from src.utility import load_model_weights
 from typing import Dict, Optional
-import logging
 import numpy as np
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 THRESHOLD = 1e-6
 
@@ -15,6 +11,12 @@ def safe_norm(tensor):
     if numel == 0:
         return 0.0
     return tensor.norm().item() / np.sqrt(numel)
+
+def normalize_direction(tensor):
+        norm_value = tensor.norm()
+        if norm_value < THRESHOLD:
+            return torch.zeros_like(tensor)
+        return tensor / norm_value
 
 def crop_model_deltas(
     model_a_path: str,
